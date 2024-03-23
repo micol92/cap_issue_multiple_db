@@ -1,0 +1,63 @@
+_schema-version: '3.1'
+ID: cap01
+version: 1.0.0
+description: "A simple CAP project."
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npx cds build --production
+modules:
+  - name: cap01-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm
+    provides:
+      - name: srv-api # required by consumers of CAP services (e.g. approuter)
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: cap01-auth
+      - name: cap01-db
+      - name: hanaschema01
+      - name: hanaschema02
+
+  - name: cap01-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: cap01-db
+
+resources:
+  - name: cap01-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: cap01-auth
+        tenant-mode: dedicated
+  - name: cap01-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+  - name: hanaschema01
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: schema
+  - name: hanaschema02
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: schema
